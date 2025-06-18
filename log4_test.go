@@ -155,3 +155,112 @@ func ExampleChannelLogger() {
 	// [15:04:05.000] ERROR: This will show
 	// [15:04:05.000] INFO: Task completed
 }
+
+// TestPackageLogger tests the package-scoped logger functionality
+func TestPackageLogger(t *testing.T) {
+	// Clean up any existing test logs
+	defer os.RemoveAll("./package-test-logs")
+
+	logger := NewChannelLogger(10, "./package-test-logs")
+	defer logger.Close()
+
+	// Create package-scoped loggers
+	appLogger := logger.Package("myapp")
+	dbLogger := logger.Package("database")
+
+	// Test basic logging
+	appLogger.Info("Application started")
+	dbLogger.Error("Connection failed")
+	appLogger.Debug("Debug message")
+
+	// Test formatted logging
+	appLogger.InfoF("Server listening on port %d", 8080)
+	dbLogger.ErrorF("Failed to connect after %d attempts", 3)
+	appLogger.DebugF("Processing %d items", 42)
+
+	// Test log levels
+	appLogger.LogLevel(INFO, "Info via LogLevel")
+	dbLogger.LogLevel(ERROR, "Error via LogLevel")
+
+	// Test context logging
+	ctx := context.Background()
+	appLogger.LogWithContext(ctx, "INFO", "Context-aware message")
+
+	// Test that package name is correctly stored
+	if appLogger.GetPackageName() != "myapp" {
+		t.Errorf("Expected package name 'myapp', got '%s'", appLogger.GetPackageName())
+	}
+
+	if dbLogger.GetPackageName() != "database" {
+		t.Errorf("Expected package name 'database', got '%s'", dbLogger.GetPackageName())
+	}
+
+	// Give time for async processing
+	time.Sleep(100 * time.Millisecond)
+}
+
+// TestPackageLoggerWithMinLevel tests package logger with minimum level filtering
+func TestPackageLoggerWithMinLevel(t *testing.T) {
+	defer os.RemoveAll("./package-level-test-logs")
+
+	config := &Config{
+		BufferSize: 10,
+		LogDir:     "./package-level-test-logs",
+		MinLevel:   INFO, // Only INFO and ERROR
+	}
+
+	logger := NewChannelLoggerWithConfig(config)
+	defer logger.Close()
+
+	appLogger := logger.Package("testapp")
+
+	// This should be logged (INFO >= INFO)
+	appLogger.Info("This should appear")
+
+	// This should NOT be logged (DEBUG < INFO)
+	appLogger.Debug("This should NOT appear")
+
+	// This should be logged (ERROR >= INFO)
+	appLogger.Error("This error should appear")
+
+	// Test runtime level change
+	logger.SetMinLevel(ERROR)
+
+	// This should NOT be logged now (INFO < ERROR)
+	appLogger.Info("This info should NOT appear after level change")
+
+	// This should still be logged (ERROR >= ERROR)
+	appLogger.Error("This error should still appear")
+
+	time.Sleep(100 * time.Millisecond)
+}
+
+// ExamplePackageLogger demonstrates the package-scoped logger usage
+func ExamplePackageLogger() {
+	// Create a logger
+	logger := NewChannelLogger(100, "./example-package-logs")
+	defer logger.Close()
+
+	// Create package-scoped loggers
+	appLogger := logger.Package("myapp")
+	dbLogger := logger.Package("database")
+	authLogger := logger.Package("auth")
+
+	// Clean API - no package name repetition
+	appLogger.Info("Application started successfully")
+	dbLogger.Error("Failed to connect to database")
+	authLogger.Debug("User authentication attempt")
+
+	// Formatted logging
+	appLogger.InfoF("Server started on port %d", 8080)
+	dbLogger.ErrorF("Connection failed after %d retries", 3)
+
+	// Context-aware logging
+	ctx := context.Background()
+	appLogger.LogWithContext(ctx, "INFO", "Request processed")
+
+	// Output will be written to separate files:
+	// - ./example-package-logs/myapp.log
+	// - ./example-package-logs/database.log
+	// - ./example-package-logs/auth.log
+}
