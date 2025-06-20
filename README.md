@@ -147,7 +147,6 @@ appLogger.InfoF("Listening on port %d", 8080) // Built-in formatting
 - ✅ No package name repetition
 - ✅ Built-in formatted logging (`InfoF`, `ErrorF`, `DebugF`)
 - ✅ Cleaner, more readable code
-- ✅ Better IDE autocomplete support
 - ✅ Backward compatibility maintained
 
 ## Performance Features
